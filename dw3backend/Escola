@@ -1,0 +1,224 @@
+create table IF NOT EXISTS escolas (
+escolaid bigserial constraint pk_clientes PRIMARY KEY,
+codigo varchar(50) UNIQUE,
+nome VARCHAR(60),
+dataAbertura date,
+ativo boolean,
+deleted boolean DEFAULT false
+);
+
+const mdlEscola = require("../model/mdlEscola");
+
+const GetAllEscolas = (req, res) =>
+  (async () => {
+    let registro = await mdlEscola.GetAllEscolas();
+    res.json({ status: "ok", registro: registro });
+  })();
+
+const GetEscolaByID = (req, res) =>
+  (async () => {
+    const escolaid = parseInt(req.body.escolaid);
+    let registro = await mdlEscola.GetEscolaByID(escolaid);
+
+    res.json({ status: "ok", registro: registro });
+  })();
+
+const InsertEscolas = (request, res) =>
+  (async () => {
+    //@ Atenção: aqui já começamos a utilizar a variável msg para retornar erros de banco de dados.
+    const registro = request.body;
+    let { msg, linhasAfetadas } = await mdlEscola.InsertEscolas(registro);
+    res.json({ status: msg, linhasAfetadas: linhasAfetadas });
+  })();
+
+const UpdateEscolas = (request, res) =>
+  (async () => {
+    const registro = request.body;
+    let { msg, linhasAfetadas } = await mdlEscola.UpdateEscolas(registro);
+    res.json({ status: msg, linhasAfetadas: linhasAfetadas });
+  })();
+
+const DeleteEscolas = (request, res) =>
+  (async () => {
+    const registro = request.body;
+    let { msg, linhasAfetadas } = await mdlEscola.DeleteEscolas(registro);
+    res.json({ status: msg, linhasAfetadas: linhasAfetadas });
+  })();
+
+module.exports = {
+  GetAllEscolas,
+  GetEscolaByID,
+  InsertEscolas,
+  UpdateEscolas,
+  DeleteEscolas,
+};
+
+const db = require("../../../database/databaseconfig");
+
+const GetAllEscolas = async () => {
+  return (
+    await db.query(
+      "SELECT * " + "FROM escolas where deleted = false ORDER BY nome ASC"
+    )
+  ).rows;
+};
+
+const GetEscolaByID = async (escolaID) => {
+  return (
+    await db.query(
+      "SELECT * " +
+        "FROM escolas WHERE escolaid = $1 and deleted = false ORDER BY nome ASC",
+      [escolaID]
+    )
+  ).rows;
+};
+
+const InsertEscolas = async (registroPar) => {
+  //@ Atenção: aqui já começamos a utilizar a variável msg para retornor erros de banco de dados.
+  let linhasAfetadas;
+  let msg = "ok";
+  try {
+    linhasAfetadas = (
+      await db.query(
+        "INSERT INTO escolas " + "values(default, $1, $2, $3, $4)",
+        [
+          registroPar.codigo,
+          registroPar.dataAbertura,
+          registroPar.ativo,
+          registroPar.deleted,
+        ]
+      )
+    ).rowCount;
+  } catch (error) {
+    msg = "[mdlEscolas|InsertEscola] " + error.detail;
+    linhasAfetadas = -1;
+  }
+
+  return { msg, linhasAfetadas };
+};
+
+const UpdateEscolas = async (registroPar) => {
+  let linhasAfetadas;
+  let msg = "ok";
+  try {
+    linhasAfetadas = (
+      await db.query(
+        "UPDATE escolas SET " +
+          "codigo = $2, " +
+          "dataAbertura = $3, " +
+          "ativo = $4, " +
+          "deleted = $5 " +
+          "WHERE escolaid = $1",
+        [
+          registroPar.escolaid,
+          registroPar.codigo,
+          registroPar.dataAbertura,
+          registroPar.ativo,
+          registroPar.deleted,
+        ]
+      )
+    ).rowCount;
+  } catch (error) {
+    msg = "[mdlEscolas|UpdateEscolas] " + error.detail;
+    linhasAfetadas = -1;
+  }
+
+  return { msg, linhasAfetadas };
+};
+
+const DeleteEscolas = async (registroPar) => {
+  let linhasAfetadas;
+  let msg = "ok";
+
+  try {
+    linhasAfetadas = (
+      await db.query(
+        "UPDATE escolas SET " + "deleted = true " + "WHERE escolaid = $1",
+        [registroPar.escolaid]
+      )
+    ).rowCount;
+  } catch (error) {
+    msg = "[mdlEscolas|DeleteEscolas] " + error.detail;
+    linhasAfetadas = -1;
+  }
+
+  return { msg, linhasAfetadas };
+};
+
+module.exports = {
+  GetAllEscolas,
+  GetEscolaByID,
+  InsertEscolas,
+  UpdateEscolas,
+  DeleteEscolas,
+};
+
+### Necessário para pegar o token
+### Post
+# @name loginAutenticado
+POST http://localhost:40000/Login HTTP/1.1
+content-type: application/json
+
+{    
+    "username": "qwe",
+    "password": "qwe"
+}
+### Seta o token
+@accessToken = {{loginAutenticado.response.body.$.token}}
+@username = {{loginAutenticado.response.body.$.username}}
+
+
+
+### teste de buscar todos os alunos
+GET http://localhost:40000/GetAllEscolas HTTP/1.1
+content-type: application/json
+Authorization: Bearer {{accessToken}}
+
+{    
+    
+}
+
+### teste de buscar aluno por ID
+POST http://localhost:40000/GetEscolaByID HTTP/1.1
+content-type: application/json
+//Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdXRob3JpemVkIjp0cnVlLCJleHAiOjE2NzQ3ODI5NzksInVzZXJuYW1lIjoicXdlIn0.SlYYCm8J6wlpb3i1jJcSvhSz6VjwKvzPOxza8P6-hzo
+
+{    
+    "escolaid": 4
+}
+
+### teste de inserção de aluno
+POST http://localhost:40000/InsertEscolas HTTP/1.1
+content-type: application/json
+//Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdXRob3JpemVkIjp0cnVlLCJleHAiOjE2NzM0ODE2NDEsInVzZXJuYW1lIjoicXdlIn0.LRKs8uvt-SJ9E9dMGYRkCs7HhMDlqVmwap_zcaoONeQ
+
+{    
+    "escolaid": 0,
+    "codigo": "Escola 1",
+    "dataAbertura": "Bacharelado em Nutrição",
+    "ativo": true,
+    "deleted": false    
+}
+
+### teste de atualização de aluno
+POST http://localhost:40000/UpdateEscolas HTTP/1.1
+content-type: application/json
+//Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdXRob3JpemVkIjp0cnVlLCJleHAiOjE2NzM0ODE2NDEsInVzZXJuYW1lIjoicXdlIn0.LRKs8uvt-SJ9E9dMGYRkCs7HhMDlqVmwap_zcaoONeQ
+
+{    
+    "escolaid": 9,
+    "codigo": "xfisio",
+    "descricao": "xBacharelado em Fisioterapia",
+    "ativo": true,
+    "deleted": false 
+}
+
+### teste de atualização de aluno
+POST http://localhost:40000/DeleteEscolas HTTP/1.1
+content-type: application/json
+//Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdXRob3JpemVkIjp0cnVlLCJleHAiOjE2NzM0ODE2NDEsInVzZXJuYW1lIjoicXdlIn0.LRKs8uvt-SJ9E9dMGYRkCs7HhMDlqVmwap_zcaoONeQ
+
+{    
+    "escolaid": 9   
+}
+
